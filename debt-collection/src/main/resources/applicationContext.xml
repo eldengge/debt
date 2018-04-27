@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:jdbc="http://www.springframework.org/schema/jdbc"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/jdbc http://www.springframework.org/schema/jdbc/spring-jdbc.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+	<context:property-placeholder location="classpath:dbConfig.properties" />
+
+	<context:component-scan base-package="com.nsm.debt.service"
+		use-default-filters="false">
+		<context:include-filter type="annotation"
+			expression="org.springframework.stereotype.Service" />
+	</context:component-scan>
+
+	<bean id="dataSource" class="com.alibaba.druid.pool.DruidDataSource">
+		<property name="driverClassName" value="${driverClassName}" />
+		<property name="url" value="${url}" />
+		<property name="username" value="${jdbc.username}" />
+		<property name="password" value="${jdbc.password}" />
+	</bean>
+
+	<bean id="sqlSessionFactoryBean" class="org.mybatis.spring.SqlSessionFactoryBean">
+		<property name="dataSource" ref="dataSource" />
+		<property name="configLocation" value="classpath:mybatis-config.xml" />
+		<property name="mapperLocations">
+	        <list>
+	            <value>classpath:mybatis/*Mapper.xml</value>
+	        </list>
+	    </property>
+	</bean>
+    
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+		<property name="basePackage" value="com.nsm.debt.dao" />
+		<property name="sqlSessionFactoryBeanName" value="sqlSessionFactoryBean" />
+	</bean>
+
+	<bean id="dataSourceTransactionManager" class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+    	<property name="dataSource" ref="dataSource"></property>
+    </bean>
+    
+    <!-- <tx:annotation-driven transaction-manager="dataSourceTransactionManager"/> -->
+    
+    <!-- xml配置事务  -->
+    <tx:advice id="orgTxTransactionManager" transaction-manager="dataSourceTransactionManager" >
+    	<tx:attributes>
+    		<tx:method name="delOrganization" rollback-for="java.lang.RuntimeException"/>
+    	</tx:attributes>
+    </tx:advice>
+	
+	<bean id="mylog" class="com.nsm.debt.entities.Log"></bean>
+	
+	<aop:config>
+		<aop:pointcut expression="execution(* com.nsm.debt.service.OrganizationService.*(..))" id="orgPointcut"/>
+		<aop:advisor advice-ref="orgTxTransactionManager" pointcut-ref="orgPointcut"/>
+		<aop:aspect ref="mylog" order="1" >
+			<aop:around method="aroudMethod" pointcut-ref="orgPointcut"/>
+		</aop:aspect>
+	</aop:config>
+
+</beans>
